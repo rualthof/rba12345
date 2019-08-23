@@ -39,36 +39,29 @@ struct arguments_struct args;
 
 int main (void) 
 {
-    
-    
-    
-    signal(SIGINT, client_interrupt_handler);
 
+    signal(SIGINT, client_interrupt_handler);
     //struct to pass adata to threads
     initialize_struct(&args);
- 
     
     
-    //Thread for receiving data
-    pthread_t recv_thread;
+    printf("\nClient started...\nType something and press enter to send..\n");
+    //Creates formated message
+    sprintf(args.last_message, "=> CREATED client_%d\n", args.client_id);
+    printf("%s\n", args.last_message);
 
     
-    
+     //Thread for receiving data
+    pthread_t recv_thread;
+
     if(pthread_create(&recv_thread, NULL, receive_messages, &args)) {    
         fprintf(stderr, "Error creating thread\n");
         return 1;    
     }
-    
-    //Creates formated message
-    sprintf(args.last_message, "===> CREATED client_%d \n", args.client_id);
-    printf("%s", args.last_message);
-    send_message_to_fifo(&args, "myfifo");
-    
-    
-    printf("\nType something and press enter to send..\n");
+
+    send_message_to_fifo(&args, "myfifo");    
     fflush(stdout);
-    
-    
+        
     
     while(1){
         
@@ -85,13 +78,11 @@ int main (void)
             continue;
         }
 
-        
         //Creates formated message
         sprintf(args.last_message, "client_%d says: %s ", args.client_id, buffer);
         
         //Checks if pipe exists (means that the server is running)
         send_message_to_fifo(&args, "myfifo");
-        
 
     }
 
@@ -149,12 +140,14 @@ void send_message_to_fifo(struct arguments_struct * args, const char * fifo_name
     //Checks if pipe exists (means that the server is running)
     int fd = open(fifo_name, O_WRONLY/* | O_NONBLOCK*/);
     if(fd>=0){
+        //printf("Sending %s", args->last_message);
         write(fd, args->last_message, sizeof(args->last_message) );
         close(fd);
     }
     else {
         printf("....... server offline, cannot send message.\n");
     }
+    fflush(stdout);
 }
 
 void initialize_struct(struct arguments_struct * args_struct){
@@ -177,7 +170,10 @@ void initialize_struct(struct arguments_struct * args_struct){
 
 void client_interrupt_handler(int sig) {
   printf("Received kb interrupt\n");
-  sprintf(args.last_message, "===> DESTROYED client_%d \n", args.client_id);
+  sprintf(args.last_message, "=> DESTROYED client_%d\n", args.client_id);
   send_message_to_fifo(&args, "myfifo");  
+  sleep(1);
+  zmq_close (args.subscriber);
+  zmq_ctx_destroy (args.context);
   exit(0);
 }

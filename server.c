@@ -12,7 +12,7 @@ void server_interrupt_handler(int sig);
 int main (void) 
 {
     printf("\n---> Starting server...\n");
-    fflush(stdout);
+
                 
     signal(SIGINT, server_interrupt_handler);
     
@@ -21,18 +21,25 @@ int main (void)
     zmq_bind (publisher, "tcp://*:5562");
         
     char * myfifo = "myfifo";        
-    mkfifo(myfifo, 0666); 
+    if(mkfifo(myfifo, 0666) != 0){
+        printf("\nSERVER: Error creating pipe file...");
+    }
+    else
+    {
+        printf("\nSERVER: Pipe file created...");
+    }
+    
+    fflush(stdout);
     
     while(1){        
         
         int fd = open(myfifo, O_RDONLY);
         if(fd>=0){
             char string [500];
-            read(fd, string, 500);
+            size_t read_ret = read(fd, string, 500);
             close(fd);
-            
-            int size = (int) strlen(string);        
-            if (size>0){
+                
+            if (read_ret>0){
             
                 printf("\nSERVER: %s", string);
                 fflush(stdout);
@@ -45,16 +52,14 @@ int main (void)
                 s_sendmore (publisher, "Server2Client");
                 s_send (publisher, string);   
             }
-            else {
-                printf("\nSERVER: Empty message");
-            }
 
         }
         else {
-            printf("/nSERVER: Could not create pipe file...");
+            printf("/nSERVER: Could not open pipe file...");
+            fflush(stdout);
         }
         
-        fflush(stdout);
+
     }
     
     unlink(myfifo);
