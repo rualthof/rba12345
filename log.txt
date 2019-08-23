@@ -1,2 +1,0 @@
-[12:34:35] client_3666 says: bom diaaaaaa
- [12:34:41] ===> DESTROYED client_3642 
