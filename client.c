@@ -13,43 +13,45 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+//Contains all the info related to the socket and the client
 struct arguments_struct {
     void * subscriber;
+    void * context;
     int client_id;
     char last_message [250];
 };
 
+
+//Used for cleaning data and sending destroy message in case of keyboard inrerrupt
 void client_interrupt_handler(int sig);
-void * receive_messages(void * arguments);
+//Funcion launched as a thread to receive data, passing the struct as argument
+void * receive_messages(void * arguments_st);
+//Function used to write data to the pipe crated by the server
 void send_message_to_fifo(struct arguments_struct * args, const char * fifo_name);
+//Allocates the necessary pointers for socket comunication and creates a random client id
+void initialize_struct(struct arguments_struct * args_struct);
+
+
 
 //Struct to pass data to thread and to signal handler (that is why it is global)
 struct arguments_struct args;
 
+
 int main (void) 
 {
     
-    //Creating unique ID for this client
-    time_t t;
-    srand((unsigned) time(&t));
-    int myID = (unsigned) t % 10000;
+    
     
     signal(SIGINT, client_interrupt_handler);
 
-    
-    //Socket
-    void *context = zmq_ctx_new ();    
-    void *subscriber = zmq_socket (context, ZMQ_SUB);
-    zmq_connect (subscriber, "tcp://localhost:5562");
-    zmq_setsockopt (subscriber, ZMQ_SUBSCRIBE, "Server2Client", 1); 
+    //struct to pass adata to threads
+    initialize_struct(&args);
+ 
     
     
     //Thread for receiving data
     pthread_t recv_thread;
-    
-    //Struct to pass data to thread
-    args.client_id = myID;
-    args.subscriber = subscriber;
+
     
     
     if(pthread_create(&recv_thread, NULL, receive_messages, &args)) {    
@@ -58,7 +60,7 @@ int main (void)
     }
     
     //Creates formated message
-    sprintf(args.last_message, "===> CREATED client_%d \n", myID);
+    sprintf(args.last_message, "===> CREATED client_%d \n", args.client_id);
     printf("%s", args.last_message);
     send_message_to_fifo(&args, "myfifo");
     
@@ -85,7 +87,7 @@ int main (void)
 
         
         //Creates formated message
-        sprintf(args.last_message, "client_%d says: %s ", myID, buffer);
+        sprintf(args.last_message, "client_%d says: %s ", args.client_id, buffer);
         
         //Checks if pipe exists (means that the server is running)
         send_message_to_fifo(&args, "myfifo");
@@ -93,8 +95,8 @@ int main (void)
 
     }
 
-    zmq_close (subscriber);
-    zmq_ctx_destroy (context);
+    zmq_close (args.subscriber);
+    zmq_ctx_destroy (args.context);
     
     
     //Wait fo threading to finish
@@ -154,6 +156,24 @@ void send_message_to_fifo(struct arguments_struct * args, const char * fifo_name
         printf("....... server offline, cannot send message.\n");
     }
 }
+
+void initialize_struct(struct arguments_struct * args_struct){
+    
+    //Socket
+    args_struct->context = zmq_ctx_new ();    
+    args_struct->subscriber = zmq_socket (args_struct->context, ZMQ_SUB);
+    zmq_connect (args_struct->subscriber, "tcp://localhost:5562");
+    zmq_setsockopt (args_struct->subscriber, ZMQ_SUBSCRIBE, "Server2Client", 1);
+    
+    //Creating unique ID for this client
+    time_t t;
+    srand((unsigned) time(&t));
+    int myID = (unsigned) t % 10000;
+    
+    args_struct->client_id = myID;
+    
+}
+
 
 void client_interrupt_handler(int sig) {
   printf("Received kb interrupt\n");

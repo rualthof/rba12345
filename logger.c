@@ -8,6 +8,7 @@
 #include <time.h>
 
 
+//Function for receiving messages and writing to file
 void * logger_receiver(void * subscriber);
 
 
@@ -25,6 +26,7 @@ int main (void)
     while(1){
         logger_receiver(subscriber);
     }    
+    
     zmq_close (subscriber);
     zmq_ctx_destroy (context); 
 }

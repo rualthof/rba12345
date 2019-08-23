@@ -5,12 +5,9 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+//Handler for keyboard interrupt, removing the fifo create during the program
+void server_interrupt_handler(int sig);
 
-void server_interrupt_handler(int sig) {
-  printf("Received kb interrupt\n");
-  unlink("myfifo");
-  exit(0);
-}
 
 int main (void) 
 {
@@ -37,7 +34,7 @@ int main (void)
             int size = (int) strlen(string);        
             if (size>0){
             
-                printf("\nSERVER: %s - %d", string, size);
+                printf("\nSERVER: %s", string);
                 fflush(stdout);
                 
                 //Send message to logger
@@ -64,4 +61,10 @@ int main (void)
     zmq_close (publisher);
     zmq_ctx_destroy (context);
     return 0;
+}
+
+void server_interrupt_handler(int sig) {
+  printf("Received kb interrupt\n");
+  unlink("myfifo");
+  exit(0);
 }
